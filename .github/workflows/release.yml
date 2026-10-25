@@ -1,0 +1,79 @@
+name: Build & Release
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-22.04
+            name: linux-x86_64
+          - os: windows-latest
+            name: windows-x64
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install SDL3 build dependencies (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ninja-build pkg-config \
+            libasound2-dev libpulse-dev libpipewire-0.3-dev libjack-dev \
+            libx11-dev libxext-dev libxrandr-dev libxcursor-dev libxfixes-dev libxi-dev \
+            libxss-dev libxtst-dev libxkbcommon-dev libwayland-dev wayland-protocols \
+            libdecor-0-dev libegl1-mesa-dev libgl1-mesa-dev libgles2-mesa-dev \
+            libdrm-dev libgbm-dev libudev-dev libdbus-1-dev
+
+      - name: Configure
+        run: cmake -B build -S . -DZECLINIC_VENDOR_SDL=ON -DCMAKE_BUILD_TYPE=MinSizeRel
+
+      - name: Build
+        run: cmake --build build --config MinSizeRel --parallel
+
+      - name: Package (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          mkdir -p pkg/ZeClinic
+          cp build/zeclinic README.md pkg/ZeClinic/
+          tar -C pkg -czf ZeClinic-${{ matrix.name }}.tar.gz ZeClinic
+
+      - name: Package (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force pkg/ZeClinic | Out-Null
+          Copy-Item build/MinSizeRel/zeclinic.exe, README.md pkg/ZeClinic/
+          Compress-Archive -Path pkg/ZeClinic -DestinationPath ZeClinic-${{ matrix.name }}.zip
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ZeClinic-${{ matrix.name }}
+          path: ZeClinic-${{ matrix.name }}.*
+
+  release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+      - name: Publish GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "${GITHUB_REF_NAME}" dist/* \
+            --repo "${GITHUB_REPOSITORY}" \
+            --title "Ze Clinic if He Borned in a Mediavel Era ${GITHUB_REF_NAME}" \
+            --notes "Download the build for your system, extract it and run **zeclinic** (Linux) or **zeclinic.exe** (Windows). No install needed."
