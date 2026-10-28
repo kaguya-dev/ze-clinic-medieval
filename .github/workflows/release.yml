@@ -40,11 +40,25 @@ jobs:
       - name: Build
         run: cmake --build build --config MinSizeRel --parallel
 
+      # Steam API redistributable from Steamworks.NET (pinned). Optional: without it the game runs LAN-only.
+      - name: Fetch Steam API redistributable
+        continue-on-error: true
+        shell: bash
+        env:
+          STEAMWORKS_NET_TAG: "2025.164.1"
+        run: |
+          base="https://raw.githubusercontent.com/rlabrecque/Steamworks.NET/${STEAMWORKS_NET_TAG}/com.rlabrecque.steamworks.net/Plugins"
+          mkdir -p steamredist
+          if [ "$RUNNER_OS" = "Windows" ]; then f=steam_api64.dll; else f=libsteam_api.so; fi
+          curl -fsSL --retry 3 -o "steamredist/$f" "$base/$f"
+          ls -la steamredist
+
       - name: Package (Linux)
         if: runner.os == 'Linux'
         run: |
           mkdir -p pkg/ZeClinic
           cp build/zeclinic README.md pkg/ZeClinic/
+          if [ -f steamredist/libsteam_api.so ]; then cp steamredist/libsteam_api.so pkg/ZeClinic/; fi
           tar -C pkg -czf ZeClinic-${{ matrix.name }}.tar.gz ZeClinic
 
       - name: Package (Windows)
@@ -53,6 +67,7 @@ jobs:
         run: |
           New-Item -ItemType Directory -Force pkg/ZeClinic | Out-Null
           Copy-Item build/MinSizeRel/zeclinic.exe, README.md pkg/ZeClinic/
+          if (Test-Path steamredist/steam_api64.dll) { Copy-Item steamredist/steam_api64.dll pkg/ZeClinic/ }
           Compress-Archive -Path pkg/ZeClinic -DestinationPath ZeClinic-${{ matrix.name }}.zip
 
       - uses: actions/upload-artifact@v4

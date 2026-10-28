@@ -6,6 +6,7 @@
 
 #include "Audio.hpp"
 #include "Game.hpp"
+#include "Net.hpp"
 
 struct App {
     SDL_Window* win = nullptr;
@@ -16,8 +17,8 @@ struct App {
     int frame = 0;
 };
 
-SDL_AppResult SDL_AppInit(void** state, int, char**) {
-    SDL_SetAppMetadata("Ze Clinic if He Borned in a Mediavel Era", "1.0", "com.plagueworks.zeclinic");
+SDL_AppResult SDL_AppInit(void** state, int argc, char** argv) {
+    SDL_SetAppMetadata("Ze Clinic if He Borned in a Mediavel Era", "2.0", "com.plagueworks.zeclinic");
     if (!SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO)) {
         SDL_Log("SDL_Init failed: %s", SDL_GetError());
         return SDL_APP_FAILURE;
@@ -32,6 +33,7 @@ SDL_AppResult SDL_AppInit(void** state, int, char**) {
     SDL_SetWindowMinimumSize(app->win, VW, VH);
     SDL_SetRenderVSync(app->ren, 1);
     audio::init(); // the game still runs silently if audio is unavailable
+    net::init(argc, argv); // Steam is optional; LAN co-op always works
     if (!app->game.init(app->win, app->ren)) return SDL_APP_FAILURE;
     app->last = SDL_GetTicksNS();
     app->autotest = SDL_getenv("ZECLINIC_AUTOTEST");
@@ -65,6 +67,7 @@ void SDL_AppQuit(void* state, SDL_AppResult) {
     auto* app = static_cast<App*>(state);
     if (!app) return;
     if (app->ren) app->game.shutdown();
+    net::shutdown();
     audio::shutdown();
     if (app->ren) SDL_DestroyRenderer(app->ren);
     if (app->win) SDL_DestroyWindow(app->win);
