@@ -30,12 +30,22 @@ endif()
 add_executable(zeclinic WIN32
   src/main.cpp
   src/Game.cpp
+  src/GameCombat.cpp
+  src/GameFx.cpp
+  src/GameNet.cpp
   src/GameRender.cpp
+  src/Menu.cpp
+  src/Autotest.cpp
   src/Art.cpp
   src/Audio.cpp
   src/Gfx.cpp
+  src/Net.cpp
 )
 target_link_libraries(zeclinic PRIVATE SDL3::SDL3)
+# Steam is loaded at runtime (SDL_LoadObject), so no Steamworks SDK is needed to build.
+if(WIN32)
+  target_link_libraries(zeclinic PRIVATE ws2_32)
+endif()
 
 if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
   target_compile_options(zeclinic PRIVATE -Wall -Wextra)

@@ -28,6 +28,20 @@ inline float approach(float v, float target, float d) {
 }
 inline float smooth(float t) { t = clampf(t, 0, 1); return t * t * (3 - 2 * t); }
 
+// Small seedable generator for effects that must look the same on every machine.
+struct Rng {
+    uint32_t s;
+    explicit Rng(uint32_t seed) : s(seed ? seed : 0x1234567u) {}
+    uint32_t next() {
+        s ^= s << 13;
+        s ^= s >> 17;
+        s ^= s << 5;
+        return s;
+    }
+    float f() { return (next() >> 8) * (1.0f / 16777216.0f); }
+    float f(float a, float b) { return a + (b - a) * f(); }
+};
+
 // 4x4 ordered-dither threshold in [0,1).
 inline float bayer(int x, int y) {
     static const int m[4][4] = {{0, 8, 2, 10}, {12, 4, 14, 6}, {3, 11, 1, 9}, {15, 7, 13, 5}};
